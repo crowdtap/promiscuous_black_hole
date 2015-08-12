@@ -54,7 +54,7 @@ describe Promiscuous::BlackHole do
     DB.extension :pg_json
     dataset.update(:id => model.id.to_s, :group => Sequel.pg_json({ 'stored as' => 'json' }))
 
-    # Creating new record should migrate the data type to be correct
+    # Manually create json column and insert data to mimic old storage strategy
     PublisherModel.create(:group => { 'stored as' => 'text' })
 
     eventually do
