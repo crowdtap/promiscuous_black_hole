@@ -1,6 +1,6 @@
 module AsyncHelper
   def eventually
-    timeout ||= Time.now + 3.seconds
+    timeout ||= Time.now + 5.seconds
     yield
   rescue Exception => e
     sleep 0.05

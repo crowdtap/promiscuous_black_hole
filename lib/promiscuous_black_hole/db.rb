@@ -6,7 +6,6 @@ module Promiscuous::BlackHole
       @@connection.try(:disconnect)
 
       @@connection = Sequel.postgres(cfg.merge(:max_connections => 10))
-      extension :pg_json
     end
 
     def self.[](arg)
