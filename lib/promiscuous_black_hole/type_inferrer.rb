@@ -1,6 +1,6 @@
 module Promiscuous::BlackHole
   module TypeInferrer
-    def type_for(value)
+    def self.type_for(value)
       case value
       when Array
         :"#{type_for(value.first)} array"
@@ -14,15 +14,6 @@ module Promiscuous::BlackHole
         :boolean
       else
         :text
-      end
-    end
-
-    def sql_representation_for(value)
-      case value
-      when Hash
-        Sequel.pg_json(value)
-      else
-        value
       end
     end
   end
