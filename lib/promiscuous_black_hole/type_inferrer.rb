@@ -7,7 +7,7 @@ module Promiscuous::BlackHole
       when Numeric
         :float
       when /^\d{4}-\d{2}-\d{2}.\d{2}:\d{2}:\d{2}/
-        :timestamptz
+        :timestamp
       when /^\d{4}-\d{2}-\d{2}$/
         :date
       when true, false

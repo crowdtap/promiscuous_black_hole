@@ -85,7 +85,7 @@ module Promiscuous::BlackHole
           [attr.to_sym, :char, { :size => 24 }]
         else
           type = TypeInferrer.type_for(val)
-          if type.in?([:date, :timestamptz])
+          if type.in?([:date, :timestamp])
             indexed_columns << attr
           end
           [attr.to_sym, type]

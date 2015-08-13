@@ -104,7 +104,7 @@ describe Promiscuous::BlackHole do
       datetime_strs.each do |datetime_str|
         it_should_behave_like 'adding a column' do
           let(:input_value)      { datetime_str }
-          let(:expected_db_type) { 'timestamp with time zone' }
+          let(:expected_db_type) { 'timestamp without time zone' }
           let(:indexed)          { true }
         end
       end
