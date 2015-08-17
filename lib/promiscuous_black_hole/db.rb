@@ -1,6 +1,6 @@
 module Promiscuous::BlackHole
   module DB
-    mattr_accessor :connection, :current_schema
+    mattr_accessor :current_schema, :connection_args
 
     def self.update_schema
       name = Config.schema_generator.call
@@ -10,18 +10,20 @@ module Promiscuous::BlackHole
       end
     end
 
+    def self.connection
+      Thread.current[:connection] ||= Sequel.postgres(self.connection_args)
+    end
+
     def self.connect(cfg)
-      @@connection.try(:disconnect)
-      @@connection = Sequel.postgres(cfg.merge(:max_connections => 10))
-      extension :pg_json, :pg_array
+      self.connection_args = cfg.merge(:max_connections => 10)
     end
 
     def self.[](table_name)
-      @@connection[table_name.to_sym]
+      self.connection[table_name.to_sym]
     end
 
     def self.method_missing(method, *args, &block)
-      @@connection.public_send(method, *args, &block)
+      self.connection.public_send(method, *args, &block)
     end
   end
 

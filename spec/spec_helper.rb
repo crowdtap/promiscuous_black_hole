@@ -8,13 +8,7 @@ require 'promiscuous_black_hole'
 
 DATABASE = 'promiscuous_black_hole_test'
 
-PROMISCUOUS_SPEC_SUPPORT_PATH = Gem::Specification.find_all_by_name('promiscuous').first.gem_dir + '/spec/support/'
-
 DB = Promiscuous::BlackHole::DB
-
-['test_cluster', 'amqp', 'kafka', 'backend', 'macros/define_constant'].each do |helper|
-  require PROMISCUOUS_SPEC_SUPPORT_PATH + helper
-end
 
 Dir["./spec/support/**/*.rb"].each {|f| require f}
 
@@ -31,22 +25,23 @@ Mongoid.configure do |config|
 end
 
 def reload_configuration
-  use_real_backend {}
+  use_real_backend { |c| c.subscriber_threads = 2 }
+
   Promiscuous::BlackHole::Config.configure do |config|
     config.connection_args = { database: DATABASE }
     config.subscriptions   = :__all__
     config.schema_generator = -> { "public" }
   end
+
   Promiscuous::BlackHole.connect
 end
 
 def clear_data
   Mongoid.purge!
 
-  DB[:"information_schema__schemata"]
-    .map { | schema| schema[:schema_name] }
-    .reject { |schema| schema =~ /^pg_/ || schema == 'information_schema' }
-    .each { |schema| DB.run("DROP SCHEMA \"#{schema}\" CASCADE") }
+  user_written_schemata.each do |schema|
+    DB.run("DROP SCHEMA \"#{schema}\" CASCADE")
+  end
 
   DB.update_schema
 end
@@ -55,7 +50,6 @@ RSpec.configure do |config|
   config.color = true
 
   config.include AsyncHelper
-  config.include AMQPHelper
   config.include KafkaHelper
   config.include BackendHelper
   config.include ModelsHelper
