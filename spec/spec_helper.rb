@@ -2,6 +2,7 @@ require 'bundler'
 require 'mongoid'
 require 'pry'
 require 'rspec'
+require 'timecop'
 
 require 'promiscuous_black_hole'
 
@@ -29,9 +30,25 @@ Mongoid.configure do |config|
   end
 end
 
-Promiscuous::BlackHole::Config.configure do |config|
-  config.connection_args = { database: DATABASE }
-  config.subscriptions   = :__all__
+def reload_configuration
+  use_real_backend {}
+  Promiscuous::BlackHole::Config.configure do |config|
+    config.connection_args = { database: DATABASE }
+    config.subscriptions   = :__all__
+    config.schema_generator = -> { "public" }
+  end
+  Promiscuous::BlackHole.connect
+end
+
+def clear_data
+  Mongoid.purge!
+
+  DB[:"information_schema__schemata"]
+    .map { | schema| schema[:schema_name] }
+    .reject { |schema| schema =~ /^pg_/ || schema == 'information_schema' }
+    .each { |schema| DB.run("DROP SCHEMA \"#{schema}\" CASCADE") }
+
+  DB.update_schema
 end
 
 RSpec.configure do |config|
@@ -49,13 +66,10 @@ end
 
 RSpec.configure do |config|
   config.before(:each) do
-    Mongoid.purge!
-    use_real_backend {}
     load_models
-    Promiscuous::BlackHole.connect
+    reload_configuration
+    clear_data
 
-    DB.drop_table(*DB.tables)
-    Promiscuous::BlackHole.ensure_embeddings_table
     run_subscriber_worker!
   end
 

@@ -18,6 +18,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'mongoid'
   s.add_development_dependency 'pry'
   s.add_development_dependency 'rspec', '~> 3.0'
+  s.add_development_dependency 'timecop'
 
   s.files        = Dir['**/*.rb']
   s.require_path = 'lib'

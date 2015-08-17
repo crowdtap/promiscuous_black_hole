@@ -15,7 +15,10 @@ module Promiscuous::BlackHole
 
     def process
       return unless Promiscuous::BlackHole.subscribing_to?(message.base_type)
-      with_wrapped_error { process! }
+      with_wrapped_error do
+        DB.update_schema
+        process!
+      end
     end
 
     def update_schema
