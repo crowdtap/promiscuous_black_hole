@@ -23,7 +23,7 @@ describe Promiscuous::BlackHole do
 
   it 'gracefully switches between schemata' do
     Promiscuous::BlackHole::Config.configure do |cfg|
-      j = 0
+      j = -1
       cfg.schema_generator = -> { j += 1 }
     end
 
@@ -31,10 +31,19 @@ describe Promiscuous::BlackHole do
       PublisherModel.field "field_#{i}"
       PublisherModel.publish "field_#{i}"
       PublisherModel.create("field_#{i}" => 'data')
+      sleep 0.2
     end
 
     eventually do
-      expect(user_written_schemata.sort).to eq((['public'] + (1..50).map(&:to_s)).sort)
+      expect(user_written_schemata.sort).to eq((['public'] + (0...50).map(&:to_s)).sort)
+
+      50.times do |i|
+        p i
+        dataset = DB[:"#{i}__publisher_models"]
+        expect(dataset.count).to eq(1)
+        p dataset.first
+        expect(dataset.first[:"field_#{i}"]).to eq('data')
+      end
     end
   end
 end
