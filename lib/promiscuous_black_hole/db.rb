@@ -11,16 +11,8 @@ module Promiscuous::BlackHole
       self.raw_connection.extension :pg_json, :pg_array
     end
 
-    def self.clear_connection
-      self.connection.try(:disconnect_connection)
-      Thread.current[:__pool__] = nil
-    end
-
     def self.disconnect
-      Thread.list.each do |t|
-        t[:__pool__].try(:disconnect)
-        t[:__pool__] = nil
-      end
+      self.raw_connection.try(:disconnect)
     end
 
     def self.method_missing(meth, *args, &block)
