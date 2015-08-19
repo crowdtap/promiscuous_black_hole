@@ -11,7 +11,6 @@ require 'promiscuous_black_hole/unit_of_work'
 module Promiscuous::BlackHole
   def self.start
     connect
-    ensure_embeddings_table
     cli = Promiscuous::CLI.new
     cli.options = { :action => :subscribe }
     cli.run
@@ -28,6 +27,5 @@ module Promiscuous::BlackHole
 
   def self.connect
     Promiscuous.ensure_connected
-    Config.connect
   end
 end

@@ -32,8 +32,6 @@ def reload_configuration
     config.subscriptions   = :__all__
     config.schema_generator = -> { "public" }
   end
-
-  Promiscuous::BlackHole.connect
 end
 
 def clear_data
@@ -42,6 +40,8 @@ def clear_data
   user_written_schemata.each do |schema|
     DB.run("DROP SCHEMA \"#{schema}\" CASCADE")
   end
+  DB.update_schema('public')
+  DB.drop_table(*DB.tables)
 
   DB.update_schema
 end
@@ -62,6 +62,7 @@ RSpec.configure do |config|
   config.before(:each) do
     load_models
     reload_configuration
+    Promiscuous::BlackHole::DB.connect
     clear_data
 
     run_subscriber_worker!

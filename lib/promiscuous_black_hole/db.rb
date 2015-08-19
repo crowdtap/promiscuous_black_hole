@@ -1,59 +1,91 @@
 module Promiscuous::BlackHole
   module DB
-    mattr_accessor :current_schema, :connection_args
+    mattr_accessor :raw_connection
 
-    def self.update_schema
-      name = Config.schema_generator.call
+    def self.connection
+      NamespacedConnection.fetch
+    end
 
-      unless self.current_schema == name
+    def self.connect
+      self.raw_connection = Sequel.postgres(Config.connection_args.merge(:max_connections => 10))
+      self.raw_connection.extension :pg_json, :pg_array
+    end
+
+    def self.clear_connection
+      self.connection.try(:disconnect_connection)
+      Thread.current[:__pool__] = nil
+    end
+
+    def self.disconnect
+      Thread.list.each do |t|
+        t[:__pool__].try(:disconnect)
+        t[:__pool__] = nil
+      end
+    end
+
+    def self.method_missing(meth, *args, &block)
+      self.connection.public_send(meth, *args, &block)
+    end
+  end
+
+  class NamespacedConnection
+    attr_accessor :current_schema
+
+    def initialize
+      self.current_schema = Schema.apply('public')
+    end
+
+    def self.fetch
+      return Thread.current[:__pool__] if Thread.current[:__pool__]
+      Thread.current[:__pool__] = new
+    end
+
+    def [](table_name)
+      DB.raw_connection[table_name.to_sym]
+    end
+
+    def update_schema(name=Config.schema_generator.call)
+      unless current_schema == name
+        DB.raw_connection.create_schema(@name) rescue nil
+        EmbeddingsTable.ensure_created
         self.current_schema = Schema.apply(name)
       end
     end
 
-    def self.connection
-      Thread.current[:connection] ||= Sequel.postgres(self.connection_args)
-    end
-
-    def self.connect(cfg)
-      self.connection_args = cfg.merge(:max_connections => 10)
-    end
-
-    def self.[](table_name)
-      self.connection[table_name.to_sym]
-    end
-
-    def self.method_missing(method, *args, &block)
-      self.connection.public_send(method, *args, &block)
+    def method_missing(meth, *args, &block)
+      DB.raw_connection.public_send(meth, *args.map { |arg| "#{current_schema}__#{arg}".to_sym}, &block)
     end
   end
 
   class Schema
     def initialize(name)
-      @name = name
+      @name = name.to_s
     end
 
     def ==(other)
-      @name == other
+      @name == other.to_s
     end
 
     def apply
-      DB.create_schema(@name) rescue nil
-      DB.run("set search_path to #{@name}")
-      EmbeddingsTable.ensure_created
+      DB.raw_connection.create_schema(@name) rescue nil
+      ensure_embeddings_table
+      self
     end
 
     def self.apply(name)
       new(name).apply
     end
-  end
 
-  module EmbeddingsTable
-    def self.ensure_created
-      DB.create_table?(:embeddings) do
+    def ensure_embeddings_table
+      DB.raw_connection.create_table?(:"#{@name}__embeddings") do
         primary_key [:parent_table, :child_table], :name => :embeddings_pk
         column :parent_table, 'varchar(255)'
         column :child_table, 'varchar(255)'
       end
+    end
+
+    def to_s
+      @name
     end
   end
 end

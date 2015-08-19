@@ -7,11 +7,8 @@ module Promiscuous::BlackHole
     end
 
     def self.configure(&block)
+      DB.disconnect
       block.call(self)
-    end
-
-    def self.connect
-      DB.connect(connection_args)
     end
   end
 end
