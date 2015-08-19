@@ -3,21 +3,19 @@ require 'spec_helper'
 describe Promiscuous::BlackHole do
   it 'sets the search path correctly on processing each message' do
     Promiscuous::BlackHole::Config.configure do |cfg|
-      cfg.schema_generator = -> { Time.now.beginning_of_hour.to_i }
+      cfg.schema_generator = -> { "aa" + Time.now.beginning_of_hour.to_i.to_s }
     end
 
-    Timecop.freeze("2015-08-17T11:01:58-04:00") do
-      expected_schema_name = Time.now.beginning_of_hour.to_i
-      PublisherModel.create!(:group => {:some => :json })
+    ["2015-08-17T11:01:58-04:00", "2015-08-17T12:01:58-04:00"].each do |time_str|
+      Timecop.freeze(time_str) do
+        PublisherModel.create!
+      end
 
-      sleep 3
-      expect(DB.fetch('show search_path').to_a).to eql([{:search_path=>"#{expected_schema_name}"}])
-    end
-    Timecop.freeze("2015-08-17T12:01:58-04:00") do
-      expected_schema_name = Time.now.beginning_of_hour.to_i
-      PublisherModel.create!(:group => {:some => :json })
-      sleep 3
-      expect(DB.fetch('show search_path').to_a).to eql([{:search_path=>"#{expected_schema_name}"}])
+      expected_schema_name = Time.iso8601(time_str).beginning_of_hour.to_i
+      table_name = "#{expected_schema_name}__publisher_models"
+      eventually do
+        expect(DB.raw_connection[table_name].count).to eq 1
+      end
     end
   end
 

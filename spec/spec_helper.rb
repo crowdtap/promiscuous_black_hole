@@ -38,7 +38,7 @@ def clear_data
   Mongoid.purge!
 
   user_written_schemata.each do |schema|
-    DB.run("DROP SCHEMA \"#{schema}\" CASCADE")
+    DB.raw_connection.run("DROP SCHEMA \"#{schema}\" CASCADE")
   end
   DB.update_schema('public')
   DB.drop_table(*DB.tables)
