@@ -3,11 +3,23 @@ module Promiscuous::BlackHole
     mattr_accessor :raw_connection
 
     def self.connection
-      NamespacedConnection.fetch
+      if Thread.current[:schema].nil?
+        Thread.current[:schema] = Schema.new
+        created_schema = true
+      end
+
+      Thread.current[:schema].apply if created_schema
+
+      raw_connection
     end
 
     def self.connect
-      self.raw_connection = Sequel.postgres(Config.connection_args.merge(:max_connections => 10))
+      self.raw_connection = Sequel.postgres(Config.connection_args.merge(
+        :max_connections => 10,
+        :after_connect => -> (conn) do
+          conn.execute("SET search_path TO #{Thread.current[:schema]}")
+        end
+      ))
       self.raw_connection.extension :pg_json, :pg_array
     end
 
