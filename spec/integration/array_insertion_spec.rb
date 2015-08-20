@@ -5,6 +5,7 @@ describe Promiscuous::BlackHole do
     PublisherModel.create!(:group => [])
 
     eventually do
+      p '* ' * 145
       expect(DB[:publisher_models].first.keys).to_not include(:group)
     end
   end

@@ -1,18 +1,22 @@
 module Promiscuous::BlackHole
   module DB
-    mattr_accessor :raw_connection
-
     def self.connection
-      NamespacedConnection.fetch
+      @@connection ||= Sequel.postgres(Config.connection_args.merge(:max_connections => 10)).tap do |conn|
+        conn.loggers = [Logger.new(STDOUT)]
+        conn.extension :pg_json, :pg_array
+      end
     end
 
-    def self.connect
-      self.raw_connection = Sequel.postgres(Config.connection_args.merge(:max_connections => 10))
-      self.raw_connection.extension :pg_json, :pg_array
+    def self.transaction_with_applied_schema
+      transaction do
+        Schema.applied do
+          yield
+        end
+      end
     end
 
-    def self.disconnect
-      self.raw_connection.try(:disconnect)
+    def self.[](arg)
+      self.connection[arg.to_sym]
     end
 
     def self.method_missing(meth, *args, &block)
@@ -20,64 +24,23 @@ module Promiscuous::BlackHole
     end
   end
 
-  class NamespacedConnection
-    attr_accessor :current_schema
-
-    def initialize
-      self.current_schema = Schema.apply('public')
-    end
-
-    def self.fetch
-      return Thread.current[:__pool__] if Thread.current[:__pool__]
-      Thread.current[:__pool__] = new
-    end
-
-    def [](table_name)
-      DB.raw_connection[table_name.to_sym]
-    end
-
-    def update_schema(name=Config.schema_generator.call)
-      unless current_schema == name
-        DB.raw_connection.create_schema(@name) rescue nil
-        EmbeddingsTable.ensure_created
-        self.current_schema = Schema.apply(name)
-      end
-    end
-
-    def method_missing(meth, *args, &block)
-      DB.raw_connection.public_send(meth, *args.map { |arg| "#{current_schema}__#{arg}".to_sym}, &block)
-    end
-  end
-
-  class Schema
-    def initialize(name)
-      @name = name.to_s
-    end
-
-    def ==(other)
-      @name == other.to_s
-    end
-
-    def apply
-      DB.raw_connection.create_schema(@name) rescue nil
+  module Schema
+    def self.applied(name=Config.schema_generator.call)
+      old_search_path = DB.fetch('show search_path').first[:search_path]
+      DB.raw_connection.create_schema(name) rescue nil
       ensure_embeddings_table
-      self
+      DB << "set search_path to #{name}"
+      yield
+    ensure
+      DB << "set search_path to #{old_search_path}"
     end
 
-    def self.apply(name)
-      new(name).apply
-    end
-
-    def ensure_embeddings_table
-      DB.raw_connection.create_table?(:"#{@name}__embeddings") do
+    def self.ensure_embeddings_table
+      DB.create_table?(:embeddings) do
         primary_key [:parent_table, :child_table], :name => :embeddings_pk
         column :parent_table, 'varchar(255)'
         column :child_table, 'varchar(255)'
       end
-    end
-
-    def to_s
-      @name
     end
   end
 end

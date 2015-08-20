@@ -38,12 +38,9 @@ def clear_data
   Mongoid.purge!
 
   user_written_schemata.each do |schema|
-    DB.raw_connection.run("DROP SCHEMA \"#{schema}\" CASCADE")
+    DB.run("DROP SCHEMA \"#{schema}\" CASCADE")
   end
-  DB.update_schema('public')
   DB.drop_table(*DB.tables)
-
-  DB.update_schema
 end
 
 RSpec.configure do |config|
@@ -62,7 +59,6 @@ RSpec.configure do |config|
   config.before(:each) do
     load_models
     reload_configuration
-    Promiscuous::BlackHole::DB.connect
     clear_data
 
     run_subscriber_worker!

@@ -7,7 +7,6 @@ module Promiscuous::BlackHole
     end
 
     def self.configure(&block)
-      DB.disconnect
       block.call(self)
     end
   end
