@@ -40,7 +40,7 @@ module Promiscuous::BlackHole
 
     def process!
       Locker.new(message.id).with_lock do
-        DB.transaction do
+        DB.transaction_with_applied_schema do
           update_schema
           persist
         end

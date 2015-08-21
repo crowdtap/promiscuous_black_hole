@@ -3,18 +3,17 @@ require 'spec_helper'
 describe Promiscuous::BlackHole do
   it 'sets the search path correctly on processing each message' do
     Promiscuous::BlackHole::Config.configure do |cfg|
-      cfg.schema_generator = -> { "aa" + Time.now.beginning_of_hour.to_i.to_s }
+      cfg.schema_generator = -> { @expected_schema_name }
     end
 
-    ["2015-08-17T11:01:58-04:00", "2015-08-17T12:01:58-04:00"].each do |time_str|
-      Timecop.freeze(time_str) do
-        PublisherModel.create!
-      end
+    [Time.now, Time.now + 1.hour].each do |time_str|
+      @expected_schema_name = Time.now.beginning_of_hour.to_i.to_s
+      PublisherModel.create!
 
-      expected_schema_name = Time.iso8601(time_str).beginning_of_hour.to_i
-      table_name = "#{expected_schema_name}__publisher_models"
       eventually do
-        expect(DB.raw_connection[table_name].count).to eq 1
+        DB.transaction_with_applied_schema(@expected_schema_name) do
+          expect(DB[:publisher_models].count).to eq 1
+        end
       end
     end
   end
@@ -47,12 +46,23 @@ describe Promiscuous::BlackHole do
       end
     end
 
+    sleep 5
     eventually do
       expect(user_written_schemata.sort).to eq((0...test_size).map(&:to_s).sort)
 
+      p 'okokokok'
+
       test_size.times do |i|
-        dataset = DB[:"#{i}__publisher_models"]
-        expect(dataset.count).to eq(max_writes_per_schema)
+        DB.transaction_with_applied_schema(i) do
+          dataset = DB[:publisher_models]
+          p dataset.count
+        end
+      end
+      test_size.times do |i|
+        DB.transaction_with_applied_schema(i) do
+          dataset = DB[:publisher_models]
+          expect(dataset.count).to eq(max_writes_per_schema)
+        end
       end
     end
   end

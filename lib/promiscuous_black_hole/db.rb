@@ -3,13 +3,53 @@ module Promiscuous::BlackHole
     def self.connection
       @@connection ||= Sequel.postgres(Config.connection_args.merge(:max_connections => 10)).tap do |conn|
         # conn.loggers = [Logger.new(STDOUT)]
+        # conn.sql_log_level = :debug
         conn.extension :pg_json, :pg_array
       end
     end
 
-    def self.transaction_with_applied_schema
-      transaction do
-        Schema.applied do
+    def self.table_exists?(table)
+      exists = connection[<<-sql]
+        SELECT EXISTS (
+          SELECT 1
+          FROM   information_schema.tables
+          WHERE  table_name = '#{table}'
+          AND    table_schema = ANY (CURRENT_SCHEMAS(false))
+        );
+      sql
+      exists.first[:exists]
+    end
+
+    def self.create_table?(table, &block)
+      connection.create_table(table, &block) unless table_exists?(table)
+    end
+
+    def self.schema_exists?(schema)
+      exists = connection[<<-sql]
+        SELECT EXISTS (
+          SELECT 1
+          FROM   information_schema.schemata
+          WHERE  schema_name = '#{schema}'
+        );
+      sql
+      exists.first[:exists]
+    end
+
+    def self.ensure_embeddings_table
+      DB.create_table?(:embeddings) do
+        primary_key [:parent_table, :child_table], :name => :embeddings_pk
+        column :parent_table, 'varchar(255)'
+        column :child_table, 'varchar(255)'
+      end
+    end
+
+    def self.transaction_with_applied_schema(name=nil, &block)
+      if in_transaction?
+        yield
+      else
+        transaction do
+          set_schema_for_transaction(name || Config.schema_generator.call)
+          ensure_embeddings_table
           yield
         end
       end
@@ -22,29 +62,14 @@ module Promiscuous::BlackHole
     def self.method_missing(meth, *args, &block)
       self.connection.public_send(meth, *args, &block)
     rescue => e
-      # puts '*'*88
-      # puts e
-      # puts e.backtrace
       raise e
     end
-  end
 
-  module Schema
-    def self.applied(name=Config.schema_generator.call, &block)
-      old_search_path = DB.fetch('SHOW search_path').first[:search_path]
-      DB.raw_connection.create_schema(name) rescue nil
-      ensure_embeddings_table
-      DB << "SET search_path TO #{name}"
-      block.call
-    ensure
-      DB << "SET search_path TO #{old_search_path}"
-    end
-
-    def self.ensure_embeddings_table
-      DB.create_table?(:embeddings) do
-        primary_key [:parent_table, :child_table], :name => :embeddings_pk
-        column :parent_table, 'varchar(255)'
-        column :child_table, 'varchar(255)'
+    class << self
+      private
+      def set_schema_for_transaction(name)
+        DB.connection.create_schema(name) unless DB.schema_exists?(name)
+        DB << "SET LOCAL search_path TO #{name}"
       end
     end
   end

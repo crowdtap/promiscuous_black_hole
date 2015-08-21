@@ -37,11 +37,12 @@ end
 def clear_data
   Mongoid.purge!
 
+  p user_written_schemata
   user_written_schemata.each do |schema|
     DB.run("DROP SCHEMA \"#{schema}\" CASCADE")
   end
   DB.drop_table(*DB.tables)
-  Promiscuous::BlackHole::Schema.ensure_embeddings_table
+  Promiscuous::BlackHole::DB.ensure_embeddings_table
 end
 
 RSpec.configure do |config|
