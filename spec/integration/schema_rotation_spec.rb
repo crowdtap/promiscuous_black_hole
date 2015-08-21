@@ -23,47 +23,45 @@ describe Promiscuous::BlackHole do
     max_writes_per_schema = 5
 
     Promiscuous::BlackHole::Config.configure do |cfg|
-      schema = writes_to_schema = 0
+      schema = 0
+      writes_to_schema = 0
+      mutex = Mutex.new
 
       cfg.schema_generator = -> do
-        if writes_to_schema >= max_writes_per_schema
-          writes_to_schema = 1
-          schema += 1
-        else
+        mutex.synchronize do
+          if writes_to_schema == max_writes_per_schema
+            writes_to_schema = 0
+            schema += 1
+          end
           writes_to_schema += 1
         end
+
         schema
       end
     end
 
     (test_size * max_writes_per_schema).times do |i|
-      field_name = "field_#{i}"
+      field_name = "field_#{i/max_writes_per_schema}"
 
       PublisherModel.instance_eval do
-        field field_name
-        publish field_name
+        if i % max_writes_per_schema == 0
+          field field_name
+          publish field_name
+        end
         create(field_name => 'data')
       end
     end
 
-    sleep 5
+    # sleep 5
     eventually do
-      expect(user_written_schemata.sort).to eq((0...test_size).map(&:to_s).sort)
-
-      p 'okokokok'
-
-      test_size.times do |i|
-        DB.transaction_with_applied_schema(i) do
-          dataset = DB[:publisher_models]
-          p dataset.count
+      total_writes = user_written_schemata.inject(0) do |writes, schema|
+        DB.transaction_with_applied_schema(schema) do
+          writes += DB[:publisher_models].count
         end
+        writes
       end
-      test_size.times do |i|
-        DB.transaction_with_applied_schema(i) do
-          dataset = DB[:publisher_models]
-          expect(dataset.count).to eq(max_writes_per_schema)
-        end
-      end
+
+      expect(total_writes).to eq(test_size * max_writes_per_schema)
     end
   end
 end

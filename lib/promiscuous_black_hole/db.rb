@@ -47,8 +47,12 @@ module Promiscuous::BlackHole
       if in_transaction?
         yield
       else
+        name ||= Config.schema_generator.call
+        unless DB.schema_exists?(name)
+          DB.connection.create_schema(name) rescue nil
+        end
         transaction do
-          set_schema_for_transaction(name || Config.schema_generator.call)
+          DB << "SET LOCAL search_path TO #{name}"
           ensure_embeddings_table
           yield
         end
@@ -68,8 +72,6 @@ module Promiscuous::BlackHole
     class << self
       private
       def set_schema_for_transaction(name)
-        DB.connection.create_schema(name) unless DB.schema_exists?(name)
-        DB << "SET LOCAL search_path TO #{name}"
       end
     end
   end
