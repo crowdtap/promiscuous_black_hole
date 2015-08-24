@@ -2,7 +2,6 @@ require 'bundler'
 require 'mongoid'
 require 'pry'
 require 'rspec'
-require 'timecop'
 
 require 'promiscuous_black_hole'
 

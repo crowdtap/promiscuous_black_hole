@@ -2,8 +2,6 @@ module Promiscuous::BlackHole
   module DB
     def self.connection
       @@connection ||= Sequel.postgres(Config.connection_args.merge(:max_connections => 10)).tap do |conn|
-        # conn.loggers = [Logger.new(STDOUT)]
-        # conn.sql_log_level = :debug
         conn.extension :pg_json, :pg_array
       end
     end
