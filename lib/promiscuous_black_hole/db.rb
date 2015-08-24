@@ -66,11 +66,5 @@ module Promiscuous::BlackHole
     rescue => e
       raise e
     end
-
-    class << self
-      private
-      def set_schema_for_transaction(name)
-      end
-    end
   end
 end
