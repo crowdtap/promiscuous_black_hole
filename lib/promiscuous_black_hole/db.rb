@@ -63,8 +63,6 @@ module Promiscuous::BlackHole
 
     def self.method_missing(meth, *args, &block)
       self.connection.public_send(meth, *args, &block)
-    rescue => e
-      raise e
     end
   end
 end

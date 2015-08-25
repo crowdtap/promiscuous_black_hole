@@ -52,7 +52,6 @@ describe Promiscuous::BlackHole do
       end
     end
 
-    # sleep 5
     eventually do
       total_writes = user_written_schemata.inject(0) do |writes, schema|
         DB.transaction_with_applied_schema(schema) do
