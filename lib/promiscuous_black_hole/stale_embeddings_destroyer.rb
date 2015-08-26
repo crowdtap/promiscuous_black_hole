@@ -22,7 +22,7 @@ module Promiscuous::BlackHole
 
     def child_tables
       criteria = DB[:embeddings].where('parent_table = ?', @table_name)
-      @cached_embeddings[criteria.sql] ||= criteria.map(:child_table)
+      @cached_embeddings[criteria.sql.hash] ||= criteria.map(:child_table)
     end
 
     private
