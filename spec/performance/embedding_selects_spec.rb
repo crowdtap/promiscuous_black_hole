@@ -31,10 +31,10 @@ describe Promiscuous::BlackHole do
     end
 
 
-    m = PublisherModel.create!(:embedded_publishers => 50.times.map do |child|
-        EmbeddedPublisher.new(:more_embedded_publisher => MoreEmbeddedPublisher.new)
-      end
-                          )
+    embedded_publishers = 50.times.map do |child|
+      EmbeddedPublisher.new(:more_embedded_publisher => MoreEmbeddedPublisher.new)
+    end
+    m = PublisherModel.create!(:embedded_publishers => embedded_publishers)
 
     sleep 1
 
