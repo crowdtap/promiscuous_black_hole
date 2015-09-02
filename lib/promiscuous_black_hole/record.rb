@@ -40,11 +40,15 @@ module Promiscuous::BlackHole
     end
 
     def attributes
-      @attributes ||= @raw_attributes.dup.tap do |attrs|
-        attrs.each do |k, v|
-          if v.is_a?(Hash)
-            @attributes[k] = MultiJson.dump(v)
-          end
+      return @attributes if @attributes
+
+      @attributes = @raw_attributes.dup
+      @attributes.each do |k, v|
+        if v.is_a?(Hash)
+          puts '*'*88
+          puts v
+          puts '*'*88
+          @attributes[k] = v.to_json
         end
       end
     end
