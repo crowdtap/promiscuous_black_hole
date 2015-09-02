@@ -40,28 +40,4 @@ describe Promiscuous::BlackHole do
 
     expect(DB.table_exists?('publisher_models')).to eq(true)
   end
-
-  it 'migrates existing json columns' do
-    dataset = DB[:publisher_models]
-    model = PublisherModel.create
-
-    # Manually create json column and insert data to mimic old storage strategy
-    eventually do
-      DB.alter_table(:publisher_models) do
-        add_column :group, :json
-      end
-    end
-    DB.extension :pg_json
-    dataset.update(:id => model.id.to_s, :group => Sequel.pg_json({ 'stored as' => 'json' }))
-
-    # Manually create json column and insert data to mimic old storage strategy
-    PublisherModel.create(:group => { 'stored as' => 'text' })
-
-    eventually do
-      expect(dataset.map { |row| row[:group] }).to eq([
-        { 'stored as' => 'json' }.to_json,
-        { 'stored as' => 'text' }.to_json
-      ])
-    end
-  end
 end
