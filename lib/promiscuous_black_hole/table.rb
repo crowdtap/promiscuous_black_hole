@@ -21,6 +21,7 @@ module Promiscuous::BlackHole
         bust_cache
 
         create_embedding_metadata if embedded_in_table
+
         ensure_created
         migrate_json_columns if json_columns
         ensure_columns

@@ -45,7 +45,7 @@ module Promiscuous::BlackHole
       @attributes = @raw_attributes.dup
       @attributes.each do |k, v|
         if v.is_a?(Hash)
-          @attributes[k] = v.to_json
+          @attributes[k] = MultiJson.dump(v)
         end
       end
     end

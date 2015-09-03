@@ -5,8 +5,9 @@ require 'promiscuous_black_hole/table'
 
 module Promiscuous::BlackHole
   class Operation
-    def initialize(message)
+    def initialize(message, embedded: false)
       @message = message
+      @embedded = embedded
     end
 
     def self.process(message)
@@ -15,7 +16,9 @@ module Promiscuous::BlackHole
 
     def process
       return unless Promiscuous::BlackHole.subscribing_to?(message.base_type)
-      with_wrapped_error { process! }
+      with_wrapped_error do
+        process!
+      end
     end
 
     def update_schema
@@ -38,8 +41,10 @@ module Promiscuous::BlackHole
 
     def process!
       Locker.new(message.id).with_lock do
-        update_schema
-        DB.transaction { persist }
+        DB.transaction_with_applied_schema do
+          update_schema
+          persist
+        end
       end
     end
 
@@ -56,7 +61,7 @@ module Promiscuous::BlackHole
     end
 
     def persist_embedded_records
-      StaleEmbeddingsDestroyer.new(message.table_name, message.id).process
+      StaleEmbeddingsDestroyer.new(message.table_name, message.id).process unless @embedded
       embedded_operations.each(&:persist)
     end
 
@@ -69,7 +74,7 @@ module Promiscuous::BlackHole
     end
 
     def embedded_operations
-      @embedded_operations ||= message.embedded_messages.map { |em| Operation.new(em) }
+      @embedded_operations ||= message.embedded_messages.map { |em| Operation.new(em, embedded: true)}
     end
 
     def with_wrapped_error(&block)
