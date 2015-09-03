@@ -9,7 +9,7 @@ module Promiscuous::BlackHole
     end
 
     def update_schema
-      update_schema! if schema_changed? || json_columns
+      update_schema! if schema_changed?
     end
 
     private
@@ -23,7 +23,6 @@ module Promiscuous::BlackHole
         create_embedding_metadata if embedded_in_table
 
         ensure_created
-        migrate_json_columns if json_columns
         ensure_columns
       end
     end
@@ -63,19 +62,6 @@ module Promiscuous::BlackHole
 
     def bust_cache
       @existing_column_names = @new_attrs = nil
-    end
-
-    def migrate_json_columns
-      local_json_columns = json_columns
-      DB.alter_table(table_name) do
-        local_json_columns.each do |column|
-          set_column_type column, :text
-        end
-      end
-    end
-
-    def json_columns
-      DB.schema(table_name).select { |column_name, type| type[:db_type] == 'json' }.map(&:first)
     end
 
     def create_columns
