@@ -22,12 +22,15 @@ describe Promiscuous::BlackHole do
     Promiscuous::BlackHole::Config.configure do |cfg|
       cfg.schema_generator = -> { @expected_schema_name }
     end
+
     Promiscuous::Config.destroy_timeout = 1.second
+
     @expected_schema_name = 'foo'
     m = PublisherModel.create!(:group => 3)
     m.destroy
     sleep 0.3
     @expected_schema_name = 'bar'
+
     eventually do
       expect(DB[:foo__publisher_models].count).to eq(0)
     end
