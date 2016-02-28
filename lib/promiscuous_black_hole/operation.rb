@@ -57,6 +57,11 @@ module Promiscuous::BlackHole
       end
 
       Locker.new(message.id).with_lock { in_transaction { persist } }
+    rescue => e
+      puts "*"*88
+      puts e.backtrace
+      puts e
+      raise e
     end
 
     def upsert

@@ -5,7 +5,7 @@ module Promiscuous::BlackHole
     end
 
     def self.table_exists?(table, opts = {})
-      DB.tables(opts).include?(table.to_sym)
+      DB.tables(opts).include?(table[0...63].to_sym)
     end
 
     def self.create_table?(table, &block)
@@ -14,6 +14,11 @@ module Promiscuous::BlackHole
 
     def self.search_path
       fetch('show search_path').first[:search_path]
+    end
+
+    def self.max_identifier_length
+      @max_identifier_length ||=
+        fetch('show max_identifier_length').first[:max_identifier_length].to_i - 1
     end
 
     def self.schema_exists?(schema)
@@ -32,6 +37,7 @@ module Promiscuous::BlackHole
         yield
       else
         name ||= Config.schema_generator.call
+        p name
         unless DB.schema_exists?(name)
           DB.connection.create_schema(name) rescue nil
         end
