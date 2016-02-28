@@ -5,7 +5,7 @@ module Promiscuous::BlackHole
     end
 
     def self.table_exists?(table, opts = {})
-      DB.tables(opts).include?(table[0...63].to_sym)
+      DB.tables(opts).include?(table.to_sym)
     end
 
     def self.create_table?(table, &block)
