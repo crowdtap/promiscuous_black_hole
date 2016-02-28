@@ -37,7 +37,6 @@ module Promiscuous::BlackHole
         yield
       else
         name ||= Config.schema_generator.call
-        p name
         unless DB.schema_exists?(name)
           DB.connection.create_schema(name) rescue nil
         end
